@@ -35,40 +35,42 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
     # The command returns a Hash if there is 1 site
     if site_json.is_a?(Hash)
       [site_json].collect do |site|
-        site_hash             = {}
-        site_hash[:name]      = site['name']
-        site_hash[:path]      = site['physicalPath']
-        site_hash[:appl_pool] = site['applicationPool']
-        bindings              = site['bindings']['Collection'].first['bindingInformation']
-        site_hash[:protocol]  = site['bindings']['Collection'].first['protocol']
-        site_hash[:ip]        = bindings.split(':')[0]
-        site_hash[:port]      = bindings.split(':')[1]
+        site_hash               = {}
+        site_hash[:name]        = site['name']
+        site_hash[:path]        = site['physicalPath']
+        site_hash[:app_pool]    = site['applicationPool']
+        bindings                = site['bindings']['Collection'].first['bindingInformation']
+        site_hash[:protocol]    = site['bindings']['Collection'].first['protocol']
+        site_hash[:ip]          = bindings.split(':')[0]
+        site_hash[:port]        = bindings.split(':')[1]
+        site_hash[:host_header] = bindings.split(':')[2]
         if site['bindings']['Collection'].first['sslFlags'] == 0
-          site_hash[:ssl]     = :true
+          site_hash[:ssl]       = :true
         else
-          site_hash[:ssl]     = :false
+          site_hash[:ssl]       = :false
         end
-        site_hash[:ensure]    = :present
+        site_hash[:ensure]      = :present
         new(site_hash)
       end
     # The command returns an Array if there is >1 site. WHY IS THIS DIFFERENT WINDOWS?
     elsif site_json.is_a?(Array)
       site_json.each.collect do |site|
-        site_hash             = {}
-        site_hash[:name]      = site['name']
-        site_hash[:path]      = site['physicalPath']
-        site_hash[:appl_pool] = site['applicationPool']
-        bindings              = site['bindings']['Collection'].split(':')
+        site_hash               = {}
+        site_hash[:name]        = site['name']
+        site_hash[:path]        = site['physicalPath']
+        site_hash[:app_pool]    = site['applicationPool']
         # Also the format of the bindings is different here. WHY WINDOWS?
-        site_hash[:protocol]  = bindings[0].split[0]
-        site_hash[:ip]        = bindings[0].split[1]
-        site_hash[:port]      = bindings[1]
+        bindings                = site['bindings']['Collection'].split(':')
+        site_hash[:protocol]    = bindings[0].split[0]
+        site_hash[:ip]          = bindings[0].split[1]
+        site_hash[:port]        = bindings[1]
+        site_hash[:host_header] = bindings[2]
         if bindings.last.split('=')[1] == '0'
-          site_hash[:ssl]     = :true
+          site_hash[:ssl]       = :true
         else
-          site_hash[:ssl]     = :false
+          site_hash[:ssl]       = :false
         end
-        site_hash[:ensure]    = :present
+        site_hash[:ensure]      = :present
         new(site_hash)
       end
     end
