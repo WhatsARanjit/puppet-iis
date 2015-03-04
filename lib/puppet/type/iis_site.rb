@@ -25,10 +25,16 @@ Puppet::Type.newtype(:iis_site) do
   end
 
   newproperty(:host_header) do
-    desc 'Application pool for the site'
+    desc 'Host header for the site'
     validate do |value|
-      fail("#{app_pool} is not a valid application pool name") unless value =~ /^[a-zA-Z0-9\-\_'\s]+$/
-      defaultto :DefaultAppPool
+      fail("#{host_header} is not a valid application pool name") unless value =~ /^[a-zA-Z0-9\-\_'\s]+$/
+    end
+  end
+
+  newproperty(:protocol) do
+    desc 'Protocol for the site'
+    validate do |value|
+      fail("#{protcol} is not a valid application pool name") unless value =~ /^[a-z]+$/
     end
   end
 
@@ -55,9 +61,13 @@ Puppet::Type.newtype(:iis_site) do
 
  newproperty(:port) do
     desc 'Port the web site listens on'
-    validate do |value|
-      fail('Port must be an integer') unless value =~ /\d+/ 
+    munge do |value|
+      value.to_i
     end
+    validate do |value|
+      fail('Port must be an integer') unless value.is_a?(Integer)
+    end
+    defaultto 80
   end
 
   newproperty(:ssl) do
