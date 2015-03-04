@@ -26,6 +26,7 @@ Example output for `puppet resource iis_site 'Default Web Site'`
 ```
 iis_site { 'Default Web Site':
   ensure   => 'present',
+  app_pool => 'DefaultAppPool',
   ip       => '*',
   path     => 'C:\InetPub\WWWRoot',
   port     => '80',
