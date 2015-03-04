@@ -134,6 +134,7 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
     'protocol',
     'ip',
     'port',
+    'host_header',
     'ssl'
   ]
 
@@ -148,9 +149,12 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
         end
       end
       inst_cmd = "Import-Module WebAdministration; Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name Bindings -Value @{protocol=\"#{bhash['protocol']}\";bindingInformation=\"#{bhash['ip']}:#{bhash['port']}"
+      binding.pry
+      inst_cmd += ":#{bhash['host_header']}" if bhash['host_header']
+      inst_cmd += '"'
       # Append sslFlags to args is enabled
-      inst_cmd += "; sslFlags=0" if bhash['ssl']
-      inst_cmd += "\"}"
+      inst_cmd += '; sslFlags=0' if bhash['ssl']
+      inst_cmd += '}'
       resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
       debug resp if resp.length > 0
       @property_hash[property.to_sym] = value
