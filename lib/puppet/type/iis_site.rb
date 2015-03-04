@@ -54,7 +54,7 @@ Puppet::Type.newtype(:iis_site) do
       return false
     end
     validate do |value|
-      fail("Invalid IP address #{value.inspect}") unless valid_v4?(value) or valid_v6?(value)
+      fail("Invalid IP address #{value.inspect}") unless valid_v4?(value) or valid_v6?(value) or value == '*'
     end
     defaultto Facter.value(:ipaddress)
   end
