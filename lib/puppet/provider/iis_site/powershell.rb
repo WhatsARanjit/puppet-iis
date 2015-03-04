@@ -4,6 +4,15 @@ require 'pry'
 
 Puppet::Type.type(:iis_site).provide(:powershell) do
 
+  def self.iisnames
+    {
+      :name        => 'name',
+      :path        => 'physicalPath',
+      :app_pool    => 'applicationPool',
+    }
+  end
+
+
   commands :powershell =>
     if File.exists?("#{ENV['SYSTEMROOT']}\\sysnative\\WindowsPowershell\\v1.0\\powershell.exe")
       "#{ENV['SYSTEMROOT']}\\sysnative\\WindowsPowershell\\v1.0\\powershell.exe"
@@ -21,18 +30,39 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
   end
 
   def self.instances
-    inst_cmd = 'Import-Module WebAdministration; Get-Website | Select Name, PhysicalPath, Bindings | ConvertTo-JSON'
+    inst_cmd = 'Import-Module WebAdministration; Get-Website | Select Name, PhysicalPath, ApplicationPool, HostHeader, Bindings | ConvertTo-JSON'
     site_json = JSON.parse(run(inst_cmd))
-    site_json.collect do |site|
-      site_hash          = {}
-      site_hash[:name]   = site_json['name']
-      site_hash[:path]   = site_json['physicalPath']
-      bindings           = site_json['bindings']['Collection'].first['bindingInformation']
-      site_hash[:ip]     = bindings.split(':')[0]
-      site_hash[:port]   = bindings.split(':')[1]
-      site_hash[:ssl]    = site_json['bindings']['Collection'].first['sslFlags']
-      site_hash[:ensure] = :present
-      new(site_hash)
+    # The command returns a Hash if there is 1 site
+    if site_json.is_a?(Hash)
+      [site_json].collect do |site|
+        site_hash             = {}
+        site_hash[:name]      = site['name']
+        site_hash[:path]      = site['physicalPath']
+        site_hash[:appl_pool] = site['applicationPool']
+        bindings              = site['bindings']['Collection'].first['bindingInformation']
+        site_hash[:protocol]  = site['bindings']['Collection'].first['protocol']
+        site_hash[:ip]        = bindings.split(':')[0]
+        site_hash[:port]      = bindings.split(':')[1]
+        site_hash[:ssl]       = site['bindings']['Collection'].first['sslFlags'] || :false
+        site_hash[:ensure]    = :present
+        new(site_hash)
+      end
+    # The command returns an Array if there is >1 site. WHY IS THIS DIFFERENT WINDOWS?
+    elsif site_json.is_a?(Array)
+      site_json.each.collect do |site|
+        site_hash             = {}
+        site_hash[:name]      = site['name']
+        site_hash[:path]      = site['physicalPath']
+        site_hash[:appl_pool] = site['applicationPool']
+        bindings              = site['bindings']['Collection'].split(':')
+        # Also the format of the bindings is different here. WHY WINDOWS?
+        site_hash[:protocol]  = bindings[0].split[0]
+        site_hash[:ip]        = bindings[0].split[1]
+        site_hash[:port]      = bindings[1]
+        site_hash[:ssl]       = bindings.last.split('=')[1] || :false
+        site_hash[:ensure]    = :present
+        new(site_hash)
+      end
     end
   end
 
@@ -50,6 +80,66 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
   end
 
   mk_resource_methods
+
+  def create
+    createSwitches = [
+      "-Name \"#{@resource[:name]}\"",
+      "-Port #{@resource[:port]} -IP #{@resource[:ip]}",
+      "-HostHeader \"#{@resource[:host_header]}\"",
+      "-PhysicalPath \"#{@resource[:path]}\"",
+      "-ApplicationPool \"#{@resource[:app_pool]}\"",
+      "-Ssl:$#{@resource[:ssl]}",
+      '-Force'
+    ] 
+    inst_cmd = "Import-Module WebAdministration; New-Website #{createSwitches.join(' ')}"
+    resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
+
+    @resource.original_parameters.each_key do |k|
+      @property_hash[k] = @resource[k]
+    end
+
+    exists? ? (return true) : (return false)
+  end
+
+  def destroy
+    inst_cmd = "Import-Module WebAdministration; Remove-Website -Name \"#{@property_hash[:name]}\"" 
+    resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
+    @property_hash.clear
+    exists? ? (return false) : (return true)
+  end
+
+  iisnames.each do |property,iisname|
+    next if property == :ensure
+    define_method "#{property.to_s}=" do |value|
+      inst_cmd = "Import-Module WebAdministration; Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name \"#{iisname}\" -Value \"#{value}\""
+      resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
+    end
+  end
+
+  # These three properties have to be submitted together
+  binders = [
+    'protocol',
+    'ip',
+    'port'
+  ]
+
+  binders.each do |property|
+    define_method "#{property}=" do |value|
+      bhash = {}
+      binders.each do |b|
+        if b == property
+          bhash[b] = value
+        else
+          bhash[b] = @property_hash[b.to_sym]
+        end
+      end
+      inst_cmd = "Import-Module WebAdministration; Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name Bindings -Value @{protocol=\"#{bhash['protocol']}\";bindingInformation=\"#{bhash['ip']}:#{bhash['port']}\"}"
+      resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
+      binding.pry
+      debug resp if resp.length > 0
+      @property_hash[property.to_sym] = value
+    end
+  end
 
   private
   def self.write_script(content, &block)
