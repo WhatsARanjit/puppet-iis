@@ -1,8 +1,7 @@
-require 'puppet/provider/exec/powershell'
+require 'puppet/provider/iispowershell'
 require 'json'
-require 'pry'
 
-Puppet::Type.type(:iis_site).provide(:powershell) do
+Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::Iispowershell) do
 
   def self.iisnames
     {
@@ -10,23 +9,6 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
       :path        => 'physicalPath',
       :app_pool    => 'applicationPool',
     }
-  end
-
-
-  commands :powershell =>
-    if File.exists?("#{ENV['SYSTEMROOT']}\\sysnative\\WindowsPowershell\\v1.0\\powershell.exe")
-      "#{ENV['SYSTEMROOT']}\\sysnative\\WindowsPowershell\\v1.0\\powershell.exe"
-    elsif File.exists?("#{ENV['SYSTEMROOT']}\\system32\\WindowsPowershell\\v1.0\\powershell.exe")
-      "#{ENV['SYSTEMROOT']}\\system32\\WindowsPowershell\\v1.0\\powershell.exe"
-    else
-      'powershell.exe'
-    end
-
-  def self.run(command, check = false)
-    write_script(command) do |native_path|
-      psh = "cmd.exe /c \"\"#{native_path(command(:powershell))}\" #{args} -Command - < \"#{native_path}\"\""
-      return %x(#{psh})
-    end
   end
 
   def self.instances
@@ -169,27 +151,8 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
     end
     inst_cmd += " -Name \"#{@property_hash[:name]}\""
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-    if resp.length > 0
-      fail(resp)
-    end
+    fail(resp) if resp.length > 0
     @property_hash[:state] = value
-  end
-
-  private
-  def self.write_script(content, &block)
-    Tempfile.open(['puppet-powershell', '.ps1']) do |file|
-      file.write(content)
-      file.flush
-      yield native_path(file.path)
-    end
-  end
-
-  def self.native_path(path)
-    path.gsub(File::SEPARATOR, File::ALT_SEPARATOR)
-  end
-
-  def self.args
-    '-NoProfile -NonInteractive -NoLogo -ExecutionPolicy Bypass'
   end
 
 end
