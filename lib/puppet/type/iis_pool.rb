@@ -1,3 +1,4 @@
+require 'pry'
 Puppet::Type.newtype(:iis_pool) do
   desc 'The iis_pool type creates and manages IIS application pools'
   ensurable
@@ -7,6 +8,15 @@ Puppet::Type.newtype(:iis_pool) do
     validate do |value|
       fail("#{name} is not a valid applcation pool name") unless value =~ /^[a-zA-Z0-9\-\_\.'\s]+$/
     end
+  end
+
+  newproperty(:state) do
+    desc 'Whether to keep the pool running or stopped'
+    newvalues(:Started, :Stopped, :started, :stopped)
+    munge do |value|
+      value.capitalize
+    end
+    defaultto :Started
   end
 
   newproperty(:enable_32_bit) do
@@ -28,6 +38,14 @@ Puppet::Type.newtype(:iis_pool) do
     newvalues(:Integrated, :Classic, :integrated, :classic)
     munge do |value|
       value.capitalize
+    end
+  end
+
+  def refresh
+    if self[:ensure] == :present and (provider.enabled? or self[:state] == 'Started')
+      provider.restart
+    else
+      debug "Skipping restart; pool is not running"
     end
   end
 
