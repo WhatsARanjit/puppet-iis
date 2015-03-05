@@ -9,6 +9,15 @@ Puppet::Type.newtype(:iis_site) do
     end
   end
 
+  newproperty(:state) do
+    desc 'Whether to keep the site running or stopped'
+    newvalues(:Started, :Stopped, :started, :stopped)
+    munge do |value|
+      value.capitalize
+    end
+    defaultto :Started
+  end
+
   newproperty(:path) do
     desc 'Path to the web site folder'
     validate do |value|
@@ -27,7 +36,7 @@ Puppet::Type.newtype(:iis_site) do
   newproperty(:host_header) do
     desc 'Host header for the site'
     validate do |value|
-      fail("#{host_header} is not a valid application pool name") unless value =~ /^[a-zA-Z0-9\-\_'\s]+$/
+      fail("#{host_header} is not a valid application pool name") unless value =~ /^[a-zA-Z0-9\-\_'\s]+$/ or value == :false
     end
   end
 
@@ -56,7 +65,7 @@ Puppet::Type.newtype(:iis_site) do
     validate do |value|
       fail("Invalid IP address #{value.inspect}") unless valid_v4?(value) or valid_v6?(value) or value == '*'
     end
-    defaultto Facter.value(:ipaddress)
+    defaultto '*'
   end
 
  newproperty(:port) do
@@ -65,7 +74,7 @@ Puppet::Type.newtype(:iis_site) do
       value.to_i
     end
     validate do |value|
-      fail('Port must be an integer') unless value.is_a?(Integer)
+      #fail('Port must be an integer') unless value =~ /\d+/
     end
     defaultto 80
   end
