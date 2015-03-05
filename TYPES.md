@@ -32,6 +32,7 @@ iis_site { 'Default Web Site':
   port     => '80',
   protocol => 'http',
   ssl      => 'false',
+  state    => 'Started',
 }
 ```
 
@@ -61,3 +62,6 @@ The port for the site to listen on. Default: `80`
 
 * `ssl`<br />
 If SSL should be enabled. Default: `false`
+
+* `state` <br />
+Whether the site should be `Started` or `Stopped`.  Default: `Started`

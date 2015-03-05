@@ -30,7 +30,7 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
   end
 
   def self.instances
-    inst_cmd = 'Import-Module WebAdministration; Get-Website | Select Name, PhysicalPath, ApplicationPool, HostHeader, Bindings | ConvertTo-JSON'
+    inst_cmd = 'Import-Module WebAdministration; Get-Website | Select Name, PhysicalPath, ApplicationPool, HostHeader, State, Bindings | ConvertTo-JSON'
     site_json = JSON.parse(run(inst_cmd))
     # The command returns a Hash if there is 1 site
     if site_json.is_a?(Hash)
@@ -39,6 +39,7 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
         site_hash[:name]        = site['name']
         site_hash[:path]        = site['physicalPath']
         site_hash[:app_pool]    = site['applicationPool']
+        site_hash[:state]       = site['state']
         bindings                = site['bindings']['Collection'].first['bindingInformation']
         site_hash[:protocol]    = site['bindings']['Collection'].first['protocol']
         site_hash[:ip]          = bindings.split(':')[0]
@@ -59,6 +60,7 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
         site_hash[:name]        = site['name']
         site_hash[:path]        = site['physicalPath']
         site_hash[:app_pool]    = site['applicationPool']
+        site_hash[:state]       = site['state']
         # Also the format of the bindings is different here. WHY WINDOWS?
         bindings                = site['bindings']['Collection'].split(':')
         site_hash[:protocol]    = bindings[0].split[0]
@@ -149,6 +151,7 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
         end
       end
       inst_cmd = "Import-Module WebAdministration; Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name Bindings -Value @{protocol=\"#{bhash['protocol']}\";bindingInformation=\"#{bhash['ip']}:#{bhash['port']}:"
+      # Add host_header to binding if there
       inst_cmd += "#{bhash['host_header']}" if bhash['host_header']
       inst_cmd += '"'
       # Append sslFlags to args is enabled
@@ -158,6 +161,18 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
       debug resp if resp.length > 0
       @property_hash[property.to_sym] = value
     end
+  end
+
+  def state=(value)
+    if value == "Started"
+      inst_cmd = 'Start-Website'
+    else
+      inst_cmd = 'Stop-Website'
+    end
+    inst_cmd += " -Name \"#{@property_hash[:name]}\""
+    resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
+    debug resp if resp.length > 0
+    @property_hash[:state] = value
   end
 
   private
