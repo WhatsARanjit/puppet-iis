@@ -72,4 +72,12 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
     exists? ? (return false) : (return true)
   end
 
+  Puppet::Type::Iis_pool::ProviderPowershell.poolattrs.each do |property,poolattr|
+    define_method "#{property}=" do |value|
+      inst_cmd = "Import-Module WebAdministration; Set-ItemProperty \"IIS:\\\\AppPools\\#{@property_hash[:name]}\" #{poolattr} #{value}"
+      resp = Puppet::Type::Iis_pool::ProviderPowershell.run(inst_cmd)
+      fail(resp) if resp.length > 0
+      @property_hash[property] = value
+    end
+  end
 end
