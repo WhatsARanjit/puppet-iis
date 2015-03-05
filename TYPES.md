@@ -1,76 +1,67 @@
-Puppet-IIS
-============================
+# IIS Types
 
-Module for puppet that can be used to create sites, application pools and virtual applications with IIS 7 and above. 
+#### Table of Contents
+1. [Overview](#overview)
+1. [Requirements] (#requirements)
+1. [Types] (#types)
+  * [iis_site] (#iis_site)
 
-[![Build Status](https://travis-ci.org/puppet-community/puppet-iis.png?branch=master)](https://travis-ci.org/puppet-community/puppet-iis)
+## Overview
 
-Usage
---
-This module is only available to Windows Server 2008 and above due to using the WebAdministration module that ships with PowerShell. To use the module, use git clone to a directory in your modules folder on your puppetmaster. Then create a module manifest for the site you wish to maintain configuration for. Then you need to include this new module manifest in your nodes.pp file as follows: 
+Create and manage IIS websites, application pools, and virtual applications.
 
-    node 'nodename' {
-        include 'mywebsite'
-    }
-    
-Please note, that you need to implement the iis class in your module as in the example below
+## Requirements
 
-Examples
---
-      class mywebsite {
-        iis::manage_app_pool {'my_application_pool':
-          enable_32_bit           => true,
-          managed_runtime_version => 'v4.0',
-        }
+- >= Windows 2012
+- IIS installed
 
-    	iis::manage_site {'www.mysite.com':
-      	  site_path     => 'C:\inetpub\wwwroot\mysite',
-      	  port          => '80',
-      	  ip_address    => '*',
-      	  host_header   => 'www.mysite.com',
-      	  app_pool      => 'my_application_pool'
-    	}
+## Types
 
-    	iis::manage_virtual_application {'application1':
-      	  site_name   => 'www.mysite.com',
-      	  site_path   => 'C:\inetpub\wwwroot\application1',
-      	  app_pool    => 'my_application_pool'
-    	}
-    	
-    	iis::manage_virtual_application {'application2':
-      	  site_name   => 'www.mysite.com',
-      	  site_path   => 'C:\inetpub\wwwroot\application2',
-      	  app_pool    => 'my_application_pool'
-    	}
-     }
-     
-This will result in an IIS Directory setup as follows:
+### iis_site
 
-* www.mysite.com
-	* Application1
-	* Application2
-	
-The module knows that if requesting a virtual application, then it will have to create a site and application pool in the correct order so that it can build the correct model. Further usage would be to include the values as specified in the iis class above from hiera configuration.
+Enumerate all IIS websites:
+* `puppet resource iis_site`<br />
 
-Additional Bindings
---
-A default binding is setup using the values passed to the manage_site resource.
-Additional bindings can be added to a site using the manage_binding resource.
+Example output for `puppet resource iis_site 'Default Web Site'`
+```
+iis_site { 'Default Web Site':
+  ensure   => 'present',
+  app_pool => 'DefaultAppPool',
+  ip       => '*',
+  path     => 'C:\InetPub\WWWRoot',
+  port     => '80',
+  protocol => 'http',
+  ssl      => 'false',
+  state    => 'Started',
+}
+```
 
---
-    iis::manage_binding { 'www.mysite.com-port-8080':
-      site_name => 'www.mysite.com',
-      protocol  => 'http',
-      port      => '8080',
-    }
+### iis_site attributes
 
-Host header and ip address can also be supplied.
+* `name`<br />
+(namevar) Web site's name.
 
---
-    iis::manage_binding { 'www.mysite.com-port-8080':
-      site_name   => 'www.mysite.com',
-      protocol    => 'http',
-      port        => '8080',
-      ip_address  => '192.168.0.1',
-      host_header => 'mysite.com',
-    }
+* `path`<br />
+Web root for the site.  This can be left blank, although IIS won't
+be able to start the site.
+
+* `app_pool`<br />
+The application pool which should contain the site. Default: `DefaultAppPool`
+
+* `host_header`<br />
+A host header that should apply to the site.
+
+* `protocol`<br />
+The protocol for the site. Default `http`
+
+* `ip`<br />
+The IP address for the site to listen on. Default: `$::ipaddress`
+
+* `port`<br />
+The port for the site to listen on. Default: `80`
+
+* `ssl`<br />
+If SSL should be enabled. Default: `false`
+
+* `state` <br />
+Whether the site should be `Started` or `Stopped`.  Default: `Started`
