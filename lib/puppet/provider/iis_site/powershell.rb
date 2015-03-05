@@ -145,7 +145,6 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
       bhash = {}
       binders.each do |b|
         if b == property
-          binding.pry
           bhash[b] = value unless value == 'false'
         else
           bhash[b] = @property_hash[b.to_sym]
