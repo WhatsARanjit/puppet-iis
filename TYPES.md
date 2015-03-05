@@ -66,3 +66,32 @@ If SSL should be enabled. Default: `false`
 
 * `state` <br />
 Whether the site should be `Started` or `Stopped`.  Default: `Started`
+
+### iis_pool
+
+Enumerate all IIS application pools:
+* `puppet resource iis_pool`<br />
+
+Example output for `puppet resource iis_site 'DefaultAppPool'`
+```
+iis_pool { 'DefaultAppPool':
+  ensure        => 'present',
+  enable_32_bit => 'false',
+  pipeline      => 'Integrated',
+  runtime       => '4.0',
+}
+```
+
+### iis_site attributes
+
+* `name`<br />
+(namevar) Application pool's name.
+
+* `enable_32_bit`<br />
+Enable 32-bit applications (boolean). Default: `false`
+
+* `pipeline`<br />
+The managed pipeline mode for the pool {'Classic', 'Integrated'}.
+
+* `runtime`<br />
+Version of .NET runtime for the pool (float).
