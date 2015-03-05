@@ -80,6 +80,7 @@ iis_pool { 'DefaultAppPool':
   enable_32_bit => 'false',
   pipeline      => 'Integrated',
   runtime       => '4.0',
+  state         => 'Started',
 }
 ```
 
@@ -96,3 +97,6 @@ The managed pipeline mode for the pool {'Classic', 'Integrated'}.
 
 * `runtime`<br />
 Version of .NET runtime for the pool (float).
+
+* `state` <br />
+Whether the site should be `Started` or `Stopped`.  Default: `Started`
