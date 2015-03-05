@@ -4,6 +4,14 @@ require 'pry'
 
 Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::Iispowershell) do
 
+  def self.poolattrs
+    {
+      :enable_32_bit => 'enable32BitAppOnWin64',
+      :runtime       => 'managedRuntimeVersion',
+      :pipeline      => 'managedPipelineMode'
+    }
+  end
+
   def self.pipelines
     {
       0 => 'Integrated',
@@ -14,7 +22,6 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
   def self.instances
     inst_cmd ='Import-Module WebAdministration; ls IIS:\\AppPools | Select Name | ConvertTo-JSON'
     pool_names = JSON.parse(run(inst_cmd))
-    binding.pry
     pool_names.collect do |pool|
       pool_cmd                  = "Import-Module WebAdministration; Get-ItemProperty \"IIS:\\\\AppPools\\#{pool['name']}\""
       pool_hash                 = {}
@@ -41,5 +48,28 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
   end
 
   mk_resource_methods
+
+  def create
+    inst_cmd = "Import-Module WebAdministration; New-WebAppPool -Name \"#{@resource[:name]}\""
+    Puppet::Type::Iis_pool::ProviderPowershell.poolattrs.each do |property,value|
+      inst_cmd += "; Set-ItemProperty \"IIS:\\\\AppPools\\#{@resource[:name]}\" #{value} #{@resource[property]}" if @resource[property]
+    end
+    resp = Puppet::Type::Iis_pool::ProviderPowershell.run(inst_cmd)
+
+    @resource.original_parameters.each_key do |k|
+      @property_hash[k] = @resource[k]
+    end
+
+    exists? ? (return true) : (return false)
+  end
+
+  def destroy
+    inst_cmd = "Import-Module WebAdministration; Remove-WebAppPool -Name \"#{@resource[:name]}\""
+    resp = Puppet::Type::Iis_pool::ProviderPowershell.run(inst_cmd)
+    fail(resp) if resp.length > 0
+
+    @property_hash.clear
+    exists? ? (return false) : (return true)
+  end
 
 end
