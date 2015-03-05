@@ -66,7 +66,7 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
         site_hash[:protocol]    = bindings[0].split[0]
         site_hash[:ip]          = bindings[0].split[1]
         site_hash[:port]        = bindings[1]
-        site_hash[:host_header] = bindings[2].gsub(/\s?sslFlags=\d+/, '')
+        site_hash[:host_header] = bindings[2].gsub(/\s?sslFlags=\d+/, '') if bindings[2]
         if bindings.last.split('=')[1] == '0'
           site_hash[:ssl]       = :true
         else
@@ -105,7 +105,7 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
     ] 
     inst_cmd = "Import-Module WebAdministration; New-Website #{createSwitches.join(' ')}"
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-    debug resp if resp.length > 0
+    fail(resp) if resp.length > 0
 
     @resource.original_parameters.each_key do |k|
       @property_hash[k] = @resource[k]
@@ -117,7 +117,7 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
   def destroy
     inst_cmd = "Import-Module WebAdministration; Remove-Website -Name \"#{@property_hash[:name]}\"" 
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-    debug resp if resp.length > 0
+    fail(resp) if resp.length > 0
     @property_hash.clear
     exists? ? (return false) : (return true)
   end
@@ -127,7 +127,7 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
     define_method "#{property.to_s}=" do |value|
       inst_cmd = "Import-Module WebAdministration; Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name \"#{iisname}\" -Value \"#{value}\""
       resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-      debug resp if resp.length > 0
+      fail(resp) if resp.length > 0
     end
   end
 
@@ -145,20 +145,19 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
       bhash = {}
       binders.each do |b|
         if b == property
-          bhash[b] = value
+          binding.pry
+          bhash[b] = value unless value == 'false'
         else
           bhash[b] = @property_hash[b.to_sym]
         end
       end
-      inst_cmd = "Import-Module WebAdministration; Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name Bindings -Value @{protocol=\"#{bhash['protocol']}\";bindingInformation=\"#{bhash['ip']}:#{bhash['port']}:"
-      # Add host_header to binding if there
-      inst_cmd += "#{bhash['host_header']}" if bhash['host_header']
+      inst_cmd = "Import-Module WebAdministration; Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name Bindings -Value @{protocol=\"#{bhash['protocol']}\";bindingInformation=\"#{bhash['ip']}:#{bhash['port']}:#{bhash['host_header']}"
       inst_cmd += '"'
       # Append sslFlags to args is enabled
       inst_cmd += '; sslFlags=0' if bhash['ssl'] and bhash['ssl'] != :false
       inst_cmd += '}'
       resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-      debug resp if resp.length > 0
+      fail(resp) if resp.length > 0
       @property_hash[property.to_sym] = value
     end
   end
@@ -171,7 +170,9 @@ Puppet::Type.type(:iis_site).provide(:powershell) do
     end
     inst_cmd += " -Name \"#{@property_hash[:name]}\""
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-    debug resp if resp.length > 0
+    if resp.length > 0
+      fail(resp)
+    end
     @property_hash[:state] = value
   end
 

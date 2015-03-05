@@ -49,7 +49,8 @@ be able to start the site.
 The application pool which should contain the site. Default: `DefaultAppPool`
 
 * `host_header`<br />
-A host header that should apply to the site.
+A host header that should apply to the site. Set to `false` to maintain
+no host header.
 
 * `protocol`<br />
 The protocol for the site. Default `http`
