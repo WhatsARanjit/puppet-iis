@@ -139,14 +139,7 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
   end
 
   def state=(value)
-    if value == "Started"
-      inst_cmd = 'Start-Website'
-    else
-      inst_cmd = 'Stop-Website'
-    end
-    inst_cmd += " -Name \"#{@property_hash[:name]}\""
-    resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-    fail(resp) if resp.length > 0
+    @property_flush['state'] = value
     @property_hash[:state] = value
   end
 
@@ -171,6 +164,15 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
       binder_cmd += '; sslFlags=0' if bhash['ssl'] and bhash['ssl'] != :false
       binder_cmd += '}'
       command_array << binder_cmd
+    end
+    if @property_flush['state']
+      if @property_flush['state'] == "Started"
+        state_cmd = 'Start-Website'
+      else
+        state_cmd = 'Stop-Website'
+      end
+      state_cmd += " -Name \"#{@property_hash[:name]}\""
+      command_array << state_cmd
     end
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(command_array.join('; '))
     fail(resp) if resp.length > 0
