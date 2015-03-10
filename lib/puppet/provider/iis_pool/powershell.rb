@@ -4,6 +4,13 @@ require 'pry'
 
 Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::Iispowershell) do
 
+  def initialize(value={})
+    super(value)
+    @property_flush = {
+      'poolattrs' => {},
+    }
+  end
+
   def self.poolattrs
     {
       :enable_32_bit => 'enable32BitAppOnWin64',
@@ -75,9 +82,7 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
 
   Puppet::Type::Iis_pool::ProviderPowershell.poolattrs.each do |property,poolattr|
     define_method "#{property}=" do |value|
-      inst_cmd = "Import-Module WebAdministration; Set-ItemProperty \"IIS:\\\\AppPools\\#{@property_hash[:name]}\" #{poolattr} #{value}"
-      resp = Puppet::Type::Iis_pool::ProviderPowershell.run(inst_cmd)
-      fail(resp) if resp.length > 0
+      @property_flush['poolatrrs'][poolattr] = value
       @property_hash[property] = value
     end
   end
@@ -99,16 +104,27 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
   end
 
   def state=(value)
-    binding.pry
-    if value == :Started
-      inst_cmd = 'Start-WebAppPool'
-    else
-      inst_cmd = 'Stop-WebAppPool'
-    end
-    inst_cmd += " -Name \"#{@property_hash[:name]}\""
-    resp = Puppet::Type::Iis_pool::ProviderPowershell.run(inst_cmd)
-    fail(resp) if resp.length > 0
+    @property_flush['state'] = value
     @property_hash[:state] = value
+  end
+
+  def flush
+    command_array = []
+    command_array << "Import-Module WebAdministration; "
+    @property_flush['poolattrs'].each do |poolattr,value|
+      command_array << "Set-ItemProperty \"IIS:\\\\AppPools\\#{@property_hash[:name]}\" #{poolattr} #{value}"
+    end
+    if @property_flush['state']
+      if @property_flush['state'] == "Started"
+        state_cmd = 'Start-WebAppPool'
+      else
+        state_cmd = 'Stop-WebAppPool'
+      end
+      state_cmd += " -Name \"#{@property_hash[:name]}\""
+      command_array << state_cmd
+    end
+    resp = Puppet::Type::Iis_site::ProviderPowershell.run(command_array.join('; '))
+    fail(resp) if resp.length > 0
   end
 
 end
