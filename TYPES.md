@@ -37,7 +37,7 @@ iis_site { 'Default Web Site':
 }
 ```
 
-### iis_site attributes
+#### iis_site attributes
 
 * `name`<br />
 (namevar) Web site's name.
@@ -84,7 +84,7 @@ iis_pool { 'DefaultAppPool':
 }
 ```
 
-### iis_pool attributes
+#### iis_pool attributes
 
 * `name`<br />
 (namevar) Application pool's name.
@@ -100,3 +100,6 @@ Version of .NET runtime for the pool (float).
 
 * `state` <br />
 Whether the site should be `Started` or `Stopped`.  Default: `Started`
+
+####Refresh event <br />
+Sending a refresh event to an iis_pool type will recycle the application pool.
