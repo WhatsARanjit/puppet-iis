@@ -1,3 +1,5 @@
+require 'tempfile'
+
 class Puppet::Provider::Iispowershell < Puppet::Provider
   initvars
 
