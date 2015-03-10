@@ -41,7 +41,7 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
       pool_hash                 = {}
       pool_hash[:name]          = pool['name']
       pool_hash[:state]         = pool['state']
-      pool_hash[:enable_32_bit] = pool['enable32BitAppOnWin64']
+      pool_hash[:enable_32_bit] = "#{pool['enable32BitAppOnWin64']}".to_sym || :false
       pool_hash[:runtime]       = pool['managedRuntimeVersion']
       pool_hash[:pipeline]      = pool['managedPipelineMode']
       pool_hash[:ensure]        = :present
@@ -89,7 +89,7 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
 
   Puppet::Type::Iis_pool::ProviderPowershell.poolattrs.each do |property,poolattr|
     define_method "#{property}=" do |value|
-      @property_flush['poolatrrs'][poolattr] = value
+      @property_flush['poolattrs'][poolattr] = value
       @property_hash[property] = value
     end
   end
@@ -122,7 +122,7 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
       command_array << "Set-ItemProperty \"IIS:\\\\AppPools\\#{@property_hash[:name]}\" #{poolattr} #{value}"
     end
     if @property_flush['state']
-      if @property_flush['state'] == "Started"
+      if @property_flush['state'] == :Started
         state_cmd = 'Start-WebAppPool'
       else
         state_cmd = 'Stop-WebAppPool'
@@ -130,7 +130,7 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
       state_cmd += " -Name \"#{@property_hash[:name]}\""
       command_array << state_cmd
     end
-    resp = Puppet::Type::Iis_site::ProviderPowershell.run(command_array.join('; '))
+    resp = Puppet::Type::Iis_pool::ProviderPowershell.run(command_array.join('; '))
     fail(resp) if resp.length > 0
   end
 
