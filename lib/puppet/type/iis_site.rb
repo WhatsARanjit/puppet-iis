@@ -29,8 +29,8 @@ Puppet::Type.newtype(:iis_site) do
     desc 'Application pool for the site'
     validate do |value|
       fail("#{app_pool} is not a valid application pool name") unless value =~ /^[a-zA-Z0-9\-\_'\s]+$/
-      defaultto :DefaultAppPool
     end
+    defaultto :DefaultAppPool
   end
 
   newproperty(:host_header) do
