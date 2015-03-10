@@ -5,7 +5,10 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
 
   def initialize(value={})
     super(value)
-    @property_flush = { 'itemproperty' => {} }
+    @property_flush = {
+      'itemproperty' => {},
+      'binders'      => {},
+    }
   end
 
   def self.iisnames
@@ -118,31 +121,19 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
   end
 
   # These three properties have to be submitted together
-  binders = [
-    'protocol',
-    'ip',
-    'port',
-    'host_header',
-    'ssl'
-  ]
+  def self.binders
+    [
+      'protocol',
+      'ip',
+      'port',
+      'host_header',
+      'ssl'
+    ]
+  end
 
   binders.each do |property|
     define_method "#{property}=" do |value|
-      bhash = {}
-      binders.each do |b|
-        if b == property
-          bhash[b] = value unless value == 'false'
-        else
-          bhash[b] = @property_hash[b.to_sym]
-        end
-      end
-      inst_cmd = "Import-Module WebAdministration; Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name Bindings -Value @{protocol=\"#{bhash['protocol']}\";bindingInformation=\"#{bhash['ip']}:#{bhash['port']}:#{bhash['host_header']}"
-      inst_cmd += '"'
-      # Append sslFlags to args is enabled
-      inst_cmd += '; sslFlags=0' if bhash['ssl'] and bhash['ssl'] != :false
-      inst_cmd += '}'
-      resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-      fail(resp) if resp.length > 0
+      @property_flush['binders'][property] = value
       @property_hash[property.to_sym] = value
     end
   end
@@ -164,6 +155,22 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
     command_array << "Import-Module WebAdministration; "
     @property_flush['itemproperty'].each do |iisname,value|
       command_array << "Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name \"#{iisname}\" -Value \"#{value}\""
+    end
+    bhash = {}
+    if ! @property_flush['binders'].empty?
+      Puppet::Type::Iis_site::ProviderPowershell.binders.each do |b|
+        if @property_flush['binders'].has_key?(b)
+          bhash[b] = @property_flush['binders'][b] unless @property_flush['binders'][b] == 'false'
+        else
+          bhash[b] = @property_hash[b.to_sym]
+        end
+      end
+      binder_cmd = "Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name Bindings -Value @{protocol=\"#{bhash['protocol']}\";bindingInformation=\"#{bhash['ip']}:#{bhash['port']}:#{bhash['host_header']}"
+      binder_cmd += '"'
+      # Append sslFlags to args is enabled
+      binder_cmd += '; sslFlags=0' if bhash['ssl'] and bhash['ssl'] != :false
+      binder_cmd += '}'
+      command_array << binder_cmd
     end
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(command_array.join('; '))
     fail(resp) if resp.length > 0
