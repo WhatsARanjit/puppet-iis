@@ -3,6 +3,11 @@ require 'json'
 
 Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::Iispowershell) do
 
+  def initialize(value={})
+    super(value)
+    @property_flush = { 'itemproperty' => {} }
+  end
+
   def self.iisnames
     {
       :name        => 'name',
@@ -107,9 +112,8 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
   iisnames.each do |property,iisname|
     next if property == :ensure
     define_method "#{property.to_s}=" do |value|
-      inst_cmd = "Import-Module WebAdministration; Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name \"#{iisname}\" -Value \"#{value}\""
-      resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-      fail(resp) if resp.length > 0
+      @property_flush['itemproperty'][iisname] = value
+      @property_hash[property.to_sym] = value
     end
   end
 
@@ -153,6 +157,16 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
     fail(resp) if resp.length > 0
     @property_hash[:state] = value
+  end
+
+  def flush
+    command_array = []
+    command_array << "Import-Module WebAdministration; "
+    @property_flush['itemproperty'].each do |iisname,value|
+      command_array << "Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name \"#{iisname}\" -Value \"#{value}\""
+    end
+    resp = Puppet::Type::Iis_site::ProviderPowershell.run(command_array.join('; '))
+    fail(resp) if resp.length > 0
   end
 
 end
