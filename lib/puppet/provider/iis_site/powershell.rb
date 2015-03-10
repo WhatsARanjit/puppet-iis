@@ -138,6 +138,26 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
     end
   end
 
+  def restart
+    inst_cmd = [ 
+      'Import-Module WebAdministration',
+      "Stop-WebSite -Name \"#{@resource[:name]}\"",
+      "Start-WebSite -Name \"#{@resource[:name]}\""
+    ]
+    resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd.join('; '))
+    fail(resp) if resp.length > 0
+  end
+
+  def enabled?
+    inst_cmd = "Import-Module WebAdministration; (Get-WebSiteState -Name \"#{@resource[:name]}\").value"
+    resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd).rstrip
+    if resp == 'Started'
+      return true
+    else
+      return false
+    end
+  end
+
   def state=(value)
     @property_flush['state'] = value
     @property_hash[:state] = value
@@ -166,7 +186,7 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
       command_array << binder_cmd
     end
     if @property_flush['state']
-      if @property_flush['state'] == "Started"
+      if @property_flush['state'] == :Started
         state_cmd = 'Start-Website'
       else
         state_cmd = 'Stop-Website'

@@ -89,4 +89,12 @@ Puppet::Type.newtype(:iis_site) do
     self[:app_pool] if @parameters.include? :app_pool
   end 
 
+  def refresh
+    if self[:ensure] == :present and (provider.enabled? or self[:state] == 'Started')
+      provider.restart
+    else
+      debug "Skipping restart; site is not running"
+    end
+  end
+
 end

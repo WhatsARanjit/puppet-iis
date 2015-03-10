@@ -68,6 +68,9 @@ If SSL should be enabled. Default: `false`
 * `state` <br />
 Whether the site should be `Started` or `Stopped`.  Default: `Started`
 
+####Refresh event <br />
+Sending a refresh event to an iis_site type will recycle the web site.
+
 ### iis_pool
 
 Enumerate all IIS application pools:
