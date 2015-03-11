@@ -77,7 +77,7 @@ Puppet::Type.type(:iis_virtualdirectory).provide(:powershell, :parent => Puppet:
 
   def flush
     command_array = []
-    command_array << "Import-Module WebAdministration; "
+    command_array << "Import-Module WebAdministration"
     @property_flush['vdattrs'].each do |vdattr,value|
       command_array << "Set-ItemProperty \"IIS:\\\\Sites\\#{@property_hash[:site]}\\#{@property_hash[:name]}\" #{vdattr} #{value}"
     end
