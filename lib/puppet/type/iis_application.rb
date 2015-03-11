@@ -31,4 +31,12 @@ Puppet::Type.newtype(:iis_application) do
     defaultto :DefaultAppPool
   end
 
+  autorequire(:iis_site) do
+    self[:site] if @parameters.include? :site
+  end
+
+  autorequire(:iis_pool) do
+    self[:app_pool] if @parameters.include? :app_pool
+  end
+
 end
