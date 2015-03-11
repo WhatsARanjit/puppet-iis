@@ -1,6 +1,5 @@
 require 'puppet/provider/iispowershell'
 require 'json'
-require 'pry'
 
 Puppet::Type.type(:iis_application).provide(:powershell, :parent => Puppet::Provider::Iispowershell) do
 
@@ -74,7 +73,12 @@ Puppet::Type.type(:iis_application).provide(:powershell, :parent => Puppet::Prov
 
   def path=(value)
     @property_flush['appattrs']['physicalPath'] = value
-    @property_hash['path'] = value
+    @property_hash[:path] = value
+  end
+
+  def app_pool=(value)
+    @property_flush['appattrs']['applicationPool'] = value
+    @property_hash[:app_pool] = value
   end
 
   def flush
