@@ -72,7 +72,7 @@ Puppet::Type.type(:iis_virtualdirectory).provide(:powershell, :parent => Puppet:
 
   def path=(value)
     @property_flush['vdattrs']['physicalPath'] = value
-    @property_hash['path'] = value
+    @property_hash[:path] = value
   end
 
   def flush
