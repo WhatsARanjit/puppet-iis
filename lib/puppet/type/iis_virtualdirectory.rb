@@ -1,4 +1,3 @@
-require 'pry'
 Puppet::Type.newtype(:iis_virtualdirectory) do
   desc 'The iis_virtualdirectory type creates and manages IIS virtual directories'
   ensurable

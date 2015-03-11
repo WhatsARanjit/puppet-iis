@@ -1,4 +1,3 @@
-require 'pry'
 Puppet::Type.newtype(:iis_pool) do
   desc 'The iis_pool type creates and manages IIS application pools'
   ensurable
