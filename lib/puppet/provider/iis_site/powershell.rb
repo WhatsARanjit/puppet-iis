@@ -1,5 +1,6 @@
 require 'puppet/provider/iispowershell'
 require 'json'
+require 'pry'
 
 Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::Iispowershell) do
 
@@ -26,10 +27,10 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
     if site_json.is_a?(Hash)
       [site_json].collect do |site|
         site_hash               = {}
+        site_hash[:ensure]      = site['state'].downcase
         site_hash[:name]        = site['name']
         site_hash[:path]        = site['physicalPath']
         site_hash[:app_pool]    = site['applicationPool']
-        site_hash[:state]       = site['state']
         bindings                = site['bindings']['Collection'].first['bindingInformation']
         site_hash[:protocol]    = site['bindings']['Collection'].first['protocol']
         site_hash[:ip]          = bindings.split(':')[0]
@@ -40,17 +41,16 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
         else
           site_hash[:ssl]       = :false
         end
-        site_hash[:ensure]      = :present
         new(site_hash)
       end
     # The command returns an Array if there is >1 site. WHY IS THIS DIFFERENT WINDOWS?
     elsif site_json.is_a?(Array)
       site_json.each.collect do |site|
         site_hash               = {}
+        site_hash[:ensure]      = site['state'].downcase
         site_hash[:name]        = site['name']
         site_hash[:path]        = site['physicalPath']
         site_hash[:app_pool]    = site['applicationPool']
-        site_hash[:state]       = site['state']
         # Also the format of the bindings is different here. WHY WINDOWS?
         bindings                = site['bindings']['Collection'].split(':')
         site_hash[:protocol]    = bindings[0].split[0]
@@ -62,7 +62,6 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
         else
           site_hash[:ssl]       = :false
         end
-        site_hash[:ensure]      = :present
         new(site_hash)
       end
     end
@@ -78,7 +77,7 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
   end
 
   def exists?
-    @property_hash[:ensure] == :present
+    [ 'stopped', 'started' ].include?(@property_hash[:ensure])
   end
 
   mk_resource_methods
@@ -95,11 +94,16 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
     ] 
     inst_cmd = "Import-Module WebAdministration; New-Website #{createSwitches.join(' ')}"
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
-    fail(resp) if resp.length > 0
 
     @resource.original_parameters.each_key do |k|
       @property_hash[k] = @resource[k]
     end
+    @property_hash[:ensure]      = :present unless @property_hash[:ensure]
+    @property_hash[:port]        = @resource[:port]
+    @property_hash[:ip]          = @resource[:ip]
+    @property_hash[:host_header] = @resource[:host_header]
+    @property_hash[:path]        = @resource[:path]
+    @property_hash[:ssl]         = @resource[:ssl]
 
     exists? ? (return true) : (return false)
   end
@@ -138,6 +142,20 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
     end
   end
 
+  def start
+    create if ! exists?
+    @property_hash[:name]    = @resource[:name]
+    @property_flush['state'] = :Started
+    @property_hash[:ensure]  = 'started'
+  end
+
+  def stop
+    create if ! exists?
+    @property_hash[:name]    = @resource[:name]
+    @property_flush['state'] = :Stopped
+    @property_hash[:ensure]  = 'stopped'
+  end
+
   def restart
     inst_cmd = [ 
       'Import-Module WebAdministration',
@@ -158,14 +176,18 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
     end
   end
 
-  def state=(value)
-    @property_flush['state'] = value
-    @property_hash[:state] = value
-  end
-
   def flush
     command_array = []
     command_array << "Import-Module WebAdministration; "
+    if @property_flush['state']
+      if @property_flush['state'] == :Started
+        state_cmd = 'Start-Website'
+      else
+        state_cmd = 'Stop-Website'
+      end
+      state_cmd += " -Name \"#{@property_hash[:name]}\""
+      command_array << state_cmd
+    end
     @property_flush['itemproperty'].each do |iisname,value|
       command_array << "Set-ItemProperty -Path \"IIS:\\\\Sites\\#{@property_hash[:name]}\" -Name \"#{iisname}\" -Value \"#{value}\""
     end
@@ -184,15 +206,6 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
       binder_cmd += '; sslFlags=0' if bhash['ssl'] and bhash['ssl'] != :false
       binder_cmd += '}'
       command_array << binder_cmd
-    end
-    if @property_flush['state']
-      if @property_flush['state'] == :Started
-        state_cmd = 'Start-Website'
-      else
-        state_cmd = 'Stop-Website'
-      end
-      state_cmd += " -Name \"#{@property_hash[:name]}\""
-      command_array << state_cmd
     end
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(command_array.join('; '))
     fail(resp) if resp.length > 0

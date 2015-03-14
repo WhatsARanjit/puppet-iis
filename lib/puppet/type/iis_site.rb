@@ -1,21 +1,35 @@
+require 'pry'
 Puppet::Type.newtype(:iis_site) do
   desc 'The iis_site type creates and manages IIS Web Sites'
-  ensurable
+
+  newproperty(:ensure) do
+    desc "Whether a site should be started."
+
+    newvalue(:stopped) do
+      provider.stop
+    end
+
+    newvalue(:started) do
+      provider.start
+    end
+
+    newvalue(:present) do
+      provider.create
+    end
+
+    newvalue(:absent) do
+      provider.destroy
+    end
+
+    aliasvalue(:false, :stopped)
+    aliasvalue(:true, :started)
+  end
 
   newparam(:name, :namevar => true) do
     desc 'This is the name of the web site'
     validate do |value|
       fail("#{name} is not a valid web site name") unless value =~ /^[a-zA-Z0-9\-\_'\s]+$/
     end
-  end
-
-  newproperty(:state) do
-    desc 'Whether to keep the site running or stopped'
-    newvalues(:Started, :Stopped, :started, :stopped)
-    munge do |value|
-      value.capitalize
-    end
-    defaultto :Started
   end
 
   newproperty(:path) do
