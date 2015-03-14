@@ -19,7 +19,7 @@ Puppet::Type.newtype(:iis_virtualdirectory) do
   newproperty(:site) do
     desc 'The site in which this virtual directory exists'
     validate do |value|
-      fail('Site is read-only attribute.  To change site, remove and create a new virtual directory')
+      fail("#{site} is not a valid site name") unless value =~ /^[a-zA-Z0-9\-\_\/\s]+$/
     end
   end
 

@@ -41,8 +41,9 @@ Puppet::Type.newtype(:iis_application) do
   newproperty(:site) do
     desc 'The site in which this virtual directory exists'
     validate do |value|
-      fail('Site is read-only attribute.  To change site, remove and create a new virtual directory')
+      fail("#{site} is not a valid application name") unless value =~ /^[a-zA-Z0-9\-\_\.'\s]+$/
     end
+    defaultto :"Default Web Site"
   end
 
   newproperty(:app_pool) do

@@ -13,6 +13,7 @@ Puppet::Type.type(:iis_virtualdirectory).provide(:powershell, :parent => Puppet:
   def self.instances
     inst_cmd = 'Import-Module WebAdministration; Get-WebVirtualDirectory | Select path, physicalPath, ItemXPath | ConvertTo-JSON'
     vd_names = JSON.parse(run(inst_cmd))
+    vd_names = [vd_names] if vd_names.is_a?(Hash)
     vd_names.collect do |vd|
       vd_hash          = {}
       vd_hash[:name]   = vd['path'].gsub(/^\//, '')
@@ -51,7 +52,7 @@ Puppet::Type.type(:iis_virtualdirectory).provide(:powershell, :parent => Puppet:
     @resource.original_parameters.each_key do |k|
       @property_hash[k] = @resource[k]
     end
-    @property_hash[k] = :present unless @property_hash[k]
+    @property_hash[:ensure] = :present unless @property_hash[:ensure]
 
     exists? ? (return true) : (return false)
   end
@@ -73,6 +74,10 @@ Puppet::Type.type(:iis_virtualdirectory).provide(:powershell, :parent => Puppet:
   def path=(value)
     @property_flush['vdattrs']['physicalPath'] = value
     @property_hash[:path] = value
+  end
+
+  def site=(value)
+    fail("site is a read-only attribute.")
   end
 
   def flush
