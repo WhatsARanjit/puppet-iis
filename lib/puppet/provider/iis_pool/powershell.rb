@@ -38,12 +38,11 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
     pool_names = JSON.parse(run(inst_cmd.join))
     pool_names.collect do |pool|
       pool_hash                 = {}
+      pool_hash[:ensure]        = pool['state'].downcase
       pool_hash[:name]          = pool['name']
-      pool_hash[:state]         = pool['state']
       pool_hash[:enable_32_bit] = "#{pool['enable32BitAppOnWin64']}".to_sym || :false
       pool_hash[:runtime]       = pool['managedRuntimeVersion']
       pool_hash[:pipeline]      = pool['managedPipelineMode']
-      pool_hash[:ensure]        = :present
       new(pool_hash)
     end
   end
@@ -58,7 +57,7 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
   end
 
   def exists?
-    @property_hash[:ensure] == :present
+    [ 'stopped', 'started' ].include?(@property_hash[:ensure])
   end
 
   mk_resource_methods
@@ -73,6 +72,7 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
     @resource.original_parameters.each_key do |k|
       @property_hash[k] = @resource[k]
     end
+    @property_hash[:ensure] = :present unless @property_hash[:ensure]
 
     exists? ? (return true) : (return false)
   end
@@ -99,6 +99,21 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
     fail(resp) if resp.length > 0
   end
   
+  def start
+    create if ! exists?
+    @property_hash[:name]    = @resource[:name]
+    @property_flush['state'] = :Started
+    @property_hash[:ensure]  = 'started'
+  end
+
+  def stop
+    create if ! exists?
+    @property_hash[:name]    = @resource[:name]
+    @property_flush['state'] = :Stopped
+    @property_hash[:ensure]  = 'stopped'
+  end
+
+
   def enabled?
     inst_cmd = "Import-Module WebAdministration; (Get-WebAppPoolState -Name \"#{@resource[:name]}\").value"
     resp = Puppet::Type::Iis_pool::ProviderPowershell.run(inst_cmd).rstrip
@@ -109,17 +124,9 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
     end
   end
 
-  def state=(value)
-    @property_flush['state'] = value
-    @property_hash[:state] = value
-  end
-
   def flush
     command_array = []
     command_array << "Import-Module WebAdministration; "
-    @property_flush['poolattrs'].each do |poolattr,value|
-      command_array << "Set-ItemProperty \"IIS:\\\\AppPools\\#{@property_hash[:name]}\" #{poolattr} #{value}"
-    end
     if @property_flush['state']
       if @property_flush['state'] == :Started
         state_cmd = 'Start-WebAppPool'
@@ -128,6 +135,9 @@ Puppet::Type.type(:iis_pool).provide(:powershell, :parent => Puppet::Provider::I
       end
       state_cmd += " -Name \"#{@property_hash[:name]}\""
       command_array << state_cmd
+    end
+    @property_flush['poolattrs'].each do |poolattr,value|
+      command_array << "Set-ItemProperty \"IIS:\\\\AppPools\\#{@property_hash[:name]}\" #{poolattr} #{value}"
     end
     resp = Puppet::Type::Iis_pool::ProviderPowershell.run(command_array.join('; '))
     fail(resp) if resp.length > 0
