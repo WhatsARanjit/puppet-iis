@@ -13,6 +13,8 @@ Puppet::Type.type(:iis_application).provide(:powershell, :parent => Puppet::Prov
   def self.instances
     inst_cmd = 'Import-Module WebAdministration; Get-WebApplication | Select path, physicalPath, applicationPool, ItemXPath | ConvertTo-JSON'
     app_names = JSON.parse(run(inst_cmd))
+    # Powershell returns different data structure if length >1
+    app_names = [app_names] if app_names.is_a?(Hash)
     app_names.collect do |app|
       app_hash            = {}
       app_hash[:name]     = app['path'].gsub(/^\//, '')
@@ -49,11 +51,10 @@ Puppet::Type.type(:iis_application).provide(:powershell, :parent => Puppet::Prov
       '-Force'
     ]
     resp = Puppet::Type::Iis_application::ProviderPowershell.run(inst_cmd.join(' '))
-
     @resource.original_parameters.each_key do |k|
       @property_hash[k] = @resource[k]
     end
-    @property_hash[k] = :present unless @property_hash[k]
+    @property_hash[:ensure] = :present unless @property_hash[:ensure]
 
     exists? ? (return true) : (return false)
   end
@@ -80,6 +81,10 @@ Puppet::Type.type(:iis_application).provide(:powershell, :parent => Puppet::Prov
   def app_pool=(value)
     @property_flush['appattrs']['applicationPool'] = value
     @property_hash[:app_pool] = value
+  end
+
+  def site=(value)
+    fail("site is a read-only attribute.")
   end
 
   def flush
