@@ -2,7 +2,7 @@ Puppet::Type.newtype(:iis_pool) do
   desc 'The iis_pool type creates and manages IIS application pools'
 
   newproperty(:ensure) do
-    desc "Whether a site should be started."
+    desc "Whether a pool should be started."
 
     newvalue(:stopped) do
       provider.stop
@@ -39,9 +39,11 @@ Puppet::Type.newtype(:iis_pool) do
 
   newproperty(:runtime) do
     desc '.NET runtime version for the pool'
+    validate do |value|
+      fail("#{runtime} must be a float") unless value =~ /^v?\d+\.\d+$/
+    end
     munge do |value|
-      value.to_f
-      "v#{value}"
+      "v#{value.gsub(/^v/, '').to_f}"
     end
   end
 
@@ -54,7 +56,7 @@ Puppet::Type.newtype(:iis_pool) do
   end
 
   def refresh
-    if self[:ensure] == :present and (provider.enabled? or self[:ensure] == 'Started')
+    if self[:ensure] == :present and (provider.enabled? or self[:ensure] == 'started')
       provider.restart
     else
       debug "Skipping restart; pool is not running"

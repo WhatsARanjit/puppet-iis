@@ -1,6 +1,5 @@
 require 'puppet/provider/iispowershell'
 require 'json'
-require 'pry'
 
 Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::Iispowershell) do
 

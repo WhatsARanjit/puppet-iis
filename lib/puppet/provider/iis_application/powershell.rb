@@ -13,7 +13,7 @@ Puppet::Type.type(:iis_application).provide(:powershell, :parent => Puppet::Prov
   def self.instances
     inst_cmd = 'Import-Module WebAdministration; Get-WebApplication | Select path, physicalPath, applicationPool, ItemXPath | ConvertTo-JSON'
     app_names = JSON.parse(run(inst_cmd))
-    [app_names].collect do |app|
+    app_names.collect do |app|
       app_hash            = {}
       app_hash[:name]     = app['path'].gsub(/^\//, '')
       app_hash[:path]     = app['PhysicalPath']
@@ -53,6 +53,7 @@ Puppet::Type.type(:iis_application).provide(:powershell, :parent => Puppet::Prov
     @resource.original_parameters.each_key do |k|
       @property_hash[k] = @resource[k]
     end
+    @property_hash[k] = :present unless @property_hash[k]
 
     exists? ? (return true) : (return false)
   end
