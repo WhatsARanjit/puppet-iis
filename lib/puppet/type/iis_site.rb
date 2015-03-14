@@ -1,4 +1,3 @@
-require 'pry'
 Puppet::Type.newtype(:iis_site) do
   desc 'The iis_site type creates and manages IIS Web Sites'
 
@@ -104,7 +103,7 @@ Puppet::Type.newtype(:iis_site) do
   end 
 
   def refresh
-    if self[:ensure] == :present and (provider.enabled? or self[:state] == 'Started')
+    if self[:ensure] == :present and (provider.enabled? or self[:ensure] == 'started')
       provider.restart
     else
       debug "Skipping restart; site is not running"

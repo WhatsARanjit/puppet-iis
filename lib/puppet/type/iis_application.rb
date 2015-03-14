@@ -1,6 +1,28 @@
 Puppet::Type.newtype(:iis_application) do
   desc 'The iis_application type creates and manages IIS  applications'
-  ensurable
+
+  newproperty(:ensure) do
+    desc "Whether an application should be started."
+
+    newvalue(:stopped) do
+      provider.stop
+    end
+
+    newvalue(:started) do
+      provider.start
+    end
+
+    newvalue(:present) do
+      provider.create
+    end
+
+    newvalue(:absent) do
+      provider.destroy
+    end
+
+    aliasvalue(:false, :stopped)
+    aliasvalue(:true, :started)
+  end
 
   newparam(:name, :namevar => true) do
     desc 'This is the name of the application'

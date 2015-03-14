@@ -51,6 +51,7 @@ Puppet::Type.type(:iis_virtualdirectory).provide(:powershell, :parent => Puppet:
     @resource.original_parameters.each_key do |k|
       @property_hash[k] = @resource[k]
     end
+    @property_hash[k] = :present unless @property_hash[k]
 
     exists? ? (return true) : (return false)
   end
