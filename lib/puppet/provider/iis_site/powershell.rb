@@ -20,16 +20,10 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
   end
 
   def self.instances
-    #inst_cmd = 'Import-Module WebAdministration; Get-Website | Select Name, PhysicalPath, ApplicationPool, HostHeader, State, Bindings | ConvertTo-JSON'
-    inst_cmd = [
-      'Import-Module WebAdministration;',
-      '$sites=(ls "IIS:\\Sites");',
-      '@(ForEach ($site in $sites)',
-      '{ $s=($site.name);',
-      'Get-ItemProperty "IIS:\\Sites\$s" |',
-      'Select Name, PhysicalPath, ApplicationPool, HostHeader, State, Bindings )} |',
-      'ConvertTo-JSON'
-    ]
+    inst_cmd = <<-ps1
+Import-Module WebAdministration;
+gci "IIS:\\sites" | %{ Get-ItemProperty $_.PSPath  | Select name, PhysicalPath, ApplicationPool, HostHeader, State, Bindings } | ConvertTo-Json
+ps1
     site_json = JSON.parse(run(inst_cmd))
     # The command returns a Hash if there is 1 site
     site_json = [site_json] if site_json.is_a?(Hash)
@@ -51,28 +45,6 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
       end
       new(site_hash)
     end
-    # The command returns an Array if there is >1 site. WHY IS THIS DIFFERENT WINDOWS?
-    #elsif site_json.is_a?(Array)
-    #  site_json.each.collect do |site|
-    #    site_hash               = {}
-    #    site_hash[:ensure]      = site['state'].downcase
-    #    site_hash[:name]        = site['name']
-    #    site_hash[:path]        = site['physicalPath']
-    #    site_hash[:app_pool]    = site['applicationPool']
-    #    # Also the format of the bindings is different here. WHY WINDOWS?
-    #    bindings                = site['bindings']['Collection'].split(':')
-    #    site_hash[:protocol]    = bindings[0].split[0]
-    #    site_hash[:ip]          = bindings[0].split[1]
-    #    site_hash[:port]        = bindings[1]
-    #    site_hash[:host_header] = bindings[2].gsub(/\s?sslFlags=\d+/, '') if bindings[2]
-    #    if bindings.last.split('=')[1] == '0'
-    #      site_hash[:ssl]       = :true
-    #    else
-    #      site_hash[:ssl]       = :false
-    #    end
-    #    new(site_hash)
-    #  end
-    #end
   end
 
   def self.prefetch(resources)
@@ -99,7 +71,7 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
       "-ApplicationPool \"#{@resource[:app_pool]}\"",
       "-Ssl:$#{@resource[:ssl]}",
       '-Force'
-    ] 
+    ]
     inst_cmd = "Import-Module WebAdministration; New-Website #{createSwitches.join(' ')}"
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
 
@@ -117,7 +89,7 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
   end
 
   def destroy
-    inst_cmd = "Import-Module WebAdministration; Remove-Website -Name \"#{@property_hash[:name]}\"" 
+    inst_cmd = "Import-Module WebAdministration; Remove-Website -Name \"#{@property_hash[:name]}\""
     resp = Puppet::Type::Iis_site::ProviderPowershell.run(inst_cmd)
     fail(resp) if resp.length > 0
     @property_hash.clear
@@ -165,7 +137,7 @@ Puppet::Type.type(:iis_site).provide(:powershell, :parent => Puppet::Provider::I
   end
 
   def restart
-    inst_cmd = [ 
+    inst_cmd = [
       'Import-Module WebAdministration',
       "Stop-WebSite -Name \"#{@resource[:name]}\"",
       "Start-WebSite -Name \"#{@resource[:name]}\""
