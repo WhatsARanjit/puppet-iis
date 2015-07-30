@@ -1,36 +1,21 @@
-require 'beaker-rspec/spec_helper'
-require 'beaker-rspec/helpers/serverspec'
+require 'beaker-rspec'
+require 'beaker/puppet_install_helper'
 
+run_puppet_install_helper
 
-hosts.each do |host|
-  
-  
-	version = ENV['PUPPET_GEM_VERSION']
-	install_puppet(:version => version)
+RSpec.configure do |c|
+  # Readable test descriptions
+  c.formatter = :documentation
 end
 
-Spec.configure do |c|
+unless ENV['MODULE_provision'] == 'no'
+  puts "Install wsus_client module to agent #{default.node_name}"
+  result = on default, "echo #{default['distmoduledir']}"
+  target = result.raw_output.chomp
   proj_root = File.expand_path(File.join(File.dirname(__FILE__), '..'))
-
-	c.formatter = :documentation
-
-	c.before :suite do
-		#The gets around a bug where windows can't validate the cert when using https
-		forge_repo = '--module_repository=http://forge.puppetlabs.com'
-
-		hosts.each do |host|
-			c.host = host
-      
-			
-
-			path = (File.expand_path(File.dirname(__FILE__)+'/../')).split('/')
-			name = path[path.length-1].split('-')[1]
-
-			copy_module_to(host, :source => proj_root, :module_name => name)
-
-      
-			on host, puppet('module','install', forge_repo, "puppetlabs-stdlib"), { :acceptable_exit_codes => [0,1] }
-	    
-	  end
+  {'stdlib' => '4.6.0', 'powershell' => '1.0.5', 'dism' => 'master'}.each do |repo, version|
+    on default, "rm -rf #{target}/#{repo};git clone --branch #{version} --depth 1 https://github.com/puppetlabs/puppetlabs-#{repo} #{target}/#{repo}"
   end
+
+  install_dev_puppet_module_on(default, {:proj_root => proj_root, :target_module_path => "#{target}", :module_name => 'iis'})
 end
