@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-source "https://rubygems.org"
+source ENV['GEM_SOURCE'] || "https://rubygems.org"
 
 group :test do
   gem "rake"
@@ -21,8 +21,9 @@ group :test do
   gem "puppetlabs_spec_helper"
   gem "metadata-json-lint"
   gem "rspec-puppet-facts"
-  gem "rspec", "< 3.2.0", { "platforms" => ["ruby_18"] }
+  gem "rspec", "< 3.2.0", {"platforms" => ["ruby_18"]}
 end
+
 
 group :development do
   gem "travis"
@@ -34,4 +35,8 @@ end
 group :system_tests do
   gem "beaker"
   gem "beaker-rspec"
+  gem 'beaker-puppet_install_helper',
+      :git => 'https://github.com/cyberious/beaker-puppet_install_helper.git',
+      :ref => 'master',
+      :require => false
 end
